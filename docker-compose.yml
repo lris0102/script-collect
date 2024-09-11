@@ -1,0 +1,25 @@
+version: '3'
+
+services:
+  nginx_log_analyzer:
+    image: alpine:latest
+    container_name: nginx_log_analyzer
+    volumes:
+      - ./nginx_log_security_analyzer.sh:/usr/local/bin/nginx_log_security_analyzer.sh
+      - /var/log/nginx/:/var/log/nginx/  # 映射 Nginx 日志目录
+      - /tmp/logs:/tmp/logs  # 分析结果目录
+    working_dir: /usr/local/bin
+    entrypoint: ["/bin/sh", "-c", "chmod +x nginx_log_security_analyzer.sh && ./nginx_log_security_analyzer.sh"]
+
+  asset_scanner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: asset_scanner
+    volumes:
+      - ./network_scanner:/usr/local/bin/network_scanner
+    entrypoint: ["/usr/local/bin/network_scanner"]
+
+networks:
+  default:
+    driver: bridge
