@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"log"
 	"os"
+
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
 
+// Server represents a server asset
 type Server struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
@@ -15,14 +17,27 @@ type Server struct {
 	Apps      []string `json:"apps"`
 }
 
+// Application represents an application asset
 type Application struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
 	Version string `json:"version"`
 }
 
-func createServerNode(ctx context.Context, driver neo4j.DriverWithContext, server Server) error {
-	session := driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
+// Database interface defines methods for interacting with Neo4j
+type Database interface {
+	CreateServerNode(ctx context.Context, server Server) error
+	CreateApplicationNode(ctx context.Context, app Application) error
+	CreateRelationship(ctx context.Context, serverID, appID string) error
+}
+
+// Neo4jDB implements the Database interface using Neo4j
+type Neo4jDB struct {
+	driver neo4j.DriverWithContext
+}
+
+func (db *Neo4jDB) CreateServerNode(ctx context.Context, server Server) error {
+	session := db.driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
 	defer session.Close(ctx)
 
 	_, err := session.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
@@ -39,8 +54,8 @@ func createServerNode(ctx context.Context, driver neo4j.DriverWithContext, serve
 	return err
 }
 
-func createApplicationNode(ctx context.Context, driver neo4j.DriverWithContext, app Application) error {
-	session := driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
+func (db *Neo4jDB) CreateApplicationNode(ctx context.Context, app Application) error {
+	session := db.driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
 	defer session.Close(ctx)
 
 	_, err := session.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
@@ -57,8 +72,8 @@ func createApplicationNode(ctx context.Context, driver neo4j.DriverWithContext, 
 	return err
 }
 
-func createRelationship(ctx context.Context, driver neo4j.DriverWithContext, serverID, appID string) error {
-	session := driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
+func (db *Neo4jDB) CreateRelationship(ctx context.Context, serverID, appID string) error {
+	session := db.driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
 	defer session.Close(ctx)
 
 	_, err := session.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
@@ -89,18 +104,20 @@ func main() {
 
 	ctx := context.Background()
 
+	db := &Neo4jDB{driver: driver}
+
 	// Example data - replace with real CMDB data
 	server := Server{ID: "srv1", Name: "Server1", IPAddress: "192.168.1.10", Apps: []string{"app1"}}
 	app := Application{ID: "app1", Name: "App1", Version: "1.0"}
 
 	// Create nodes and relationships
-	if err := createServerNode(ctx, driver, server); err != nil {
+	if err := db.CreateServerNode(ctx, server); err != nil {
 		log.Fatalf("Failed to create server node: %v", err)
 	}
-	if err := createApplicationNode(ctx, driver, app); err != nil {
+	if err := db.CreateApplicationNode(ctx, app); err != nil {
 		log.Fatalf("Failed to create application node: %v", err)
 	}
-	if err := createRelationship(ctx, driver, server.ID, app.ID); err != nil {
+	if err := db.CreateRelationship(ctx, server.ID, app.ID); err != nil {
 		log.Fatalf("Failed to create relationship: %v", err)
 	}
 
