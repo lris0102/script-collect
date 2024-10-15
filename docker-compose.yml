@@ -20,7 +20,7 @@ services:
       - ./network_scanner:/usr/local/bin/network_scanner
     entrypoint: ["/usr/local/bin/network_scanner"]
 
-    asset_collector:
+  asset_collector:
     build:
       context: .
       dockerfile: Dockerfile.asset_collector
